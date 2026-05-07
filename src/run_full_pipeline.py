@@ -45,10 +45,10 @@ for folder in [
 # Settings
 # ----------------------------------------------------
 FPS = 25
-MAX_JUMP_PIXELS = 80
-MAX_FRAME_GAP = 8
-MAX_INTERPOLATION_GAP = 5
-SMOOTHING_WINDOW = 3
+MAX_JUMP_PIXELS = 180
+MAX_FRAME_GAP = 20
+MAX_INTERPOLATION_GAP = 10
+SMOOTHING_WINDOW = 5
 
 
 # ----------------------------------------------------
@@ -175,10 +175,13 @@ df["raw_center_y"] = df["center_y"]
 df["raw_detected"] = df["detected"]
 
 valid_indices = []
+segment_id = 0
 
 last_x = None
 last_y = None
 last_frame = None
+
+df["segment_id"] = np.nan
 
 for i, row in df.iterrows():
 
@@ -189,47 +192,64 @@ for i, row in df.iterrows():
     y = row["raw_center_y"]
     frame = row["frame"]
 
-    keep = True
-
-    if last_x is not None:
-        dist = np.sqrt((x - last_x) ** 2 + (y - last_y) ** 2)
-        frame_gap = frame - last_frame
-
-        if dist > MAX_JUMP_PIXELS or frame_gap > MAX_FRAME_GAP:
-            keep = False
-
-    if keep:
+    # First valid ball detection starts first segment
+    if last_x is None:
         valid_indices.append(i)
+        df.loc[i, "segment_id"] = segment_id
         last_x = x
         last_y = y
         last_frame = frame
+        continue
+
+    dist = np.sqrt((x - last_x) ** 2 + (y - last_y) ** 2)
+    frame_gap = frame - last_frame
+
+    # If movement is too large, start a new segment instead of rejecting forever
+    if dist > MAX_JUMP_PIXELS or frame_gap > MAX_FRAME_GAP:
+        segment_id += 1
+
+    valid_indices.append(i)
+    df.loc[i, "segment_id"] = segment_id
+
+    last_x = x
+    last_y = y
+    last_frame = frame
 
 df["valid_detection"] = False
 df.loc[valid_indices, "valid_detection"] = True
 
 df.loc[~df["valid_detection"], ["center_x", "center_y"]] = np.nan
 
-df["interp_center_x"] = df["center_x"].interpolate(
-    limit=MAX_INTERPOLATION_GAP,
-    limit_direction="both"
-)
+df["interp_center_x"] = np.nan
+df["interp_center_y"] = np.nan
+df["smooth_center_x"] = np.nan
+df["smooth_center_y"] = np.nan
 
-df["interp_center_y"] = df["center_y"].interpolate(
-    limit=MAX_INTERPOLATION_GAP,
-    limit_direction="both"
-)
+for seg in df["segment_id"].dropna().unique():
+    seg_mask = df["segment_id"] == seg
+    seg_df = df.loc[seg_mask].copy()
 
-df["smooth_center_x"] = df["interp_center_x"].rolling(
-    window=SMOOTHING_WINDOW,
-    center=True,
-    min_periods=1
-).mean()
+    df.loc[seg_mask, "interp_center_x"] = seg_df["center_x"].interpolate(
+        limit=MAX_INTERPOLATION_GAP,
+        limit_direction="both"
+    )
 
-df["smooth_center_y"] = df["interp_center_y"].rolling(
-    window=SMOOTHING_WINDOW,
-    center=True,
-    min_periods=1
-).mean()
+    df.loc[seg_mask, "interp_center_y"] = seg_df["center_y"].interpolate(
+        limit=MAX_INTERPOLATION_GAP,
+        limit_direction="both"
+    )
+
+    df.loc[seg_mask, "smooth_center_x"] = df.loc[seg_mask, "interp_center_x"].rolling(
+        window=SMOOTHING_WINDOW,
+        center=True,
+        min_periods=1
+    ).mean()
+
+    df.loc[seg_mask, "smooth_center_y"] = df.loc[seg_mask, "interp_center_y"].rolling(
+        window=SMOOTHING_WINDOW,
+        center=True,
+        min_periods=1
+    ).mean()
 
 df["improved_available"] = (
     df["smooth_center_x"].notna()
