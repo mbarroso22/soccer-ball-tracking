@@ -1,22 +1,68 @@
+# =========================================
 # Python
+# =========================================
 .venv/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 
-# Data and outputs
+# =========================================
+# VS Code / OS
+# =========================================
+.vscode/
+.DS_Store
+Thumbs.db
+
+# =========================================
+# SoccerNet datasets and broadcasts
+# =========================================
+SoccerTrackingData/
+*.mkv
+
+# =========================================
+# Raw and generated videos
+# =========================================
 data/raw_videos/
+outputs/videos/
+
+# =========================================
+# Large generated outputs
+# =========================================
+outputs/detections/
+outputs/tracks/
+
+# =========================================
+# Temporary processing folders
+# =========================================
 data/processed/
 data/annotations/
-outputs/
-models/
-results/
 
+# =========================================
 # Model weights
+# =========================================
 *.pt
 *.pth
 *.onnx
 
-# OS/editor
-.vscode/
-.DS_Store
-Thumbs.db
+# =========================================
+# Optional large experiment outputs
+# =========================================
+*.mp4
+*.avi
+*.mov
+
+# =========================================
+# Keep lightweight experiment summaries
+# =========================================
+!results/
+!results/*.csv
+!results/*.png
+
+# =========================================
+# Keep source code and docs
+# =========================================
+!src/
+!docs/
+!README.md
+!requirements.txt
