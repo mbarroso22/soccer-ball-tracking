@@ -49,6 +49,7 @@ data/annotations/
 # Optional large experiment outputs
 # =========================================
 *.mp4
+!final_assets/demo_videos/*.mp4
 *.avi
 *.mov
 
